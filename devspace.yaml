@@ -1,0 +1,78 @@
+version: v2beta1
+name: astral
+
+pipelines:
+  build:
+    build_images --all
+  build-app:
+    build_images app
+  dev: |-
+    echo "Running dev pipeline"
+  deploy: |-
+    echo "Deploying"
+    # 1. Deploy any projects this project needs (see "dependencies")
+    run_dependencies --all
+    # 2. Build, tag (git commit hash) and push all images (see "images")
+    build_images --all -t $(git describe --always)
+    # 3. Deploy Helm charts and manifests specfied as "deployments"
+    create_deployments --all
+
+images:
+  app:
+    image: k3d-myregistry.localhost:12345/duck1123/astral
+    custom:
+      command: |-
+        set -ex
+        earthly \
+          --build-arg EXPECTED_REF=duck1123/astral:${runtime.images.app.tag} \
+          +image
+        docker tag duck1123/astral:${runtime.images.app.tag} ${runtime.images.app.image}:${runtime.images.app.tag}
+        docker image rm duck1123/astral:${runtime.images.app.tag}
+        docker push ${runtime.images.app.image}:${runtime.images.app.tag}
+        docker image rm ${runtime.images.app.image}:${runtime.images.app.tag}
+
+deployments:
+  app:
+    helm:
+      chart:
+        # name: ./helm
+        name: astral
+        repo: https://chart.kronkltd.net/
+        version: 0.1.0
+      valuesFiles:
+        - ./values.yaml
+      values:
+        image:
+          repository: k3d-myregistry.localhost:12345/duck1123/astral
+          tag: "${runtime.images.app.tag}"
+
+dev:
+  app:
+    labelSelector:
+      app.kubernetes.io/name: astral
+      app.kubernetes.io/instance: app
+    # Sync files between the local filesystem and the development container
+    sync:
+      - path: ./
+    # Open a terminal and use the following command to start it
+    # terminal:
+    #   command: ./devspace_start.sh
+    # Inject a lightweight SSH server into the container (so your IDE can connect to the remote dev env)
+    ssh:
+      enabled: true
+    # Make the following commands from my local machine available inside the dev container
+    # proxyCommands:
+    #   - command: devspace
+    #   - command: kubectl
+    #   - command: helm
+    #   - command: git
+    # Forward the following ports to be able access your application via localhost
+    # ports:
+    #   - port: "9090"
+    # Open the following URLs once they return an HTTP status code other than 502 or 503
+    # open:
+    #   - url: http://localhost:9090
+
+commands:
+  deploy:
+    command: devspace deploy

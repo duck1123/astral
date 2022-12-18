@@ -1,0 +1,12 @@
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: astral.dev.kronkltd.net
+      paths:
+        - path: "/"
+  tls:
+    - hosts:
+        - astral.dev.kronkltd.net
+      secretName: astral-tls
