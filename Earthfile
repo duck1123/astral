@@ -30,3 +30,6 @@ image:
   COPY ./nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
   COPY +build/app /app
   SAVE IMAGE --push ${EXPECTED_REF}
+
+ci:
+  BUILD +image
